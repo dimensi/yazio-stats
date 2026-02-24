@@ -80,6 +80,42 @@ npm run exercises
 npm run goals
 ```
 
+## Сборка бинарника
+
+Можно собрать в один исполняемый файл через [Bun](https://bun.sh/) — работает без Node/Bun/tsx:
+
+```bash
+npm run build
+# создаёт ./yazio-stats
+```
+
+Бинарник читает `.env` из текущей рабочей директории, поэтому запускать нужно из папки проекта, либо прокинуть переменные напрямую:
+
+```bash
+YAZIO_USERNAME=email YAZIO_PASSWORD=pass ./yazio-stats summary
+```
+
+### Кросс-компиляция
+
+Bun умеет собирать под другие платформы прямо с текущей машины:
+
+```bash
+# macOS ARM (по умолчанию на Apple Silicon)
+bun build --compile src/cli.ts --outfile yazio-stats
+
+# macOS Intel
+bun build --compile --target=bun-darwin-x64 src/cli.ts --outfile yazio-stats-mac-x64
+
+# Linux x64
+bun build --compile --target=bun-linux-x64 src/cli.ts --outfile yazio-stats-linux
+
+# Linux ARM
+bun build --compile --target=bun-linux-arm64 src/cli.ts --outfile yazio-stats-linux-arm
+
+# Windows x64
+bun build --compile --target=bun-windows-x64 src/cli.ts --outfile yazio-stats.exe
+```
+
 ## Примечания
 
 - API YAZIO неофициальный — может перестать работать при обновлении сервиса
