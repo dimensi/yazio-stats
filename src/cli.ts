@@ -6,13 +6,14 @@ import { registerWaterCommand } from "./commands/water.js";
 import { registerWeightCommand } from "./commands/weight.js";
 import { registerExercisesCommand } from "./commands/exercises.js";
 import { registerGoalsCommand } from "./commands/goals.js";
+import pkg from "../package.json";
 
 const program = new Command();
 
 program
   .name("yazio-stats")
   .description("Extract nutrition statistics from YAZIO")
-  .version("1.0.0");
+  .version(pkg.version);
 
 registerSummaryCommand(program);
 registerMealsCommand(program);
