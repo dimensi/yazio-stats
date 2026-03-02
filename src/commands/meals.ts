@@ -46,6 +46,17 @@ export function registerMealsCommand(program: Command) {
               serving: item.serving ?? "-",
             });
           }
+
+          const simpleProducts = (items as any)?.simple_products ?? [];
+          for (const item of simpleProducts) {
+            rows.push({
+              date: formatDate(dates[i]),
+              meal: item.daytime,
+              product: item.name,
+              amount: "-",
+              serving: "express",
+            });
+          }
         } catch {
           // skip days with errors
         }
