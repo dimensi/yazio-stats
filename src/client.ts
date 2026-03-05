@@ -1,4 +1,5 @@
 import { Yazio } from "yazio";
+import type { Token } from "yazio/auth";
 import "dotenv/config";
 import { readFile, writeFile, rename, rm } from "fs/promises";
 import { join } from "path";
@@ -11,7 +12,7 @@ function getTokenFilePath(): string {
   return join(process.cwd(), TOKEN_FILENAME);
 }
 
-async function readTokenFile(): Promise<unknown> {
+async function readTokenFile(): Promise<Token | null> {
   const filePath = getTokenFilePath();
   let data: string;
   try {
@@ -20,14 +21,14 @@ async function readTokenFile(): Promise<unknown> {
     return null; // file missing
   }
   try {
-    return JSON.parse(data) as unknown;
+    return JSON.parse(data) as Token;
   } catch {
     console.error("Warning: invalid token file, re-authenticating.");
     return null;
   }
 }
 
-async function writeTokenFile(token: unknown): Promise<void> {
+async function writeTokenFile(token: Token): Promise<void> {
   const filePath = getTokenFilePath();
   const tmpPath = join(tmpdir(), `yazio-token-${randomBytes(6).toString("hex")}.json`);
   try {
@@ -71,8 +72,8 @@ export function getClient(options?: { noCacheToken?: boolean }): Yazio {
   } else {
     instance = new Yazio({
       credentials: { username, password },
-      token: readTokenFile(),
-      onRefresh: ({ token }) => writeTokenFile(token),
+      token: () => readTokenFile(),
+      onRefresh: ({ token }: { token: Token }) => writeTokenFile(token),
     });
   }
 
