@@ -1,9 +1,46 @@
 import { Yazio } from "yazio";
 import "dotenv/config";
+import { readFile, writeFile, rename, rm } from "fs/promises";
+import { join } from "path";
+import { tmpdir } from "os";
+import { randomBytes } from "crypto";
+
+const TOKEN_FILENAME = "yazio-token.json";
+
+function getTokenFilePath(): string {
+  return join(process.cwd(), TOKEN_FILENAME);
+}
+
+async function readTokenFile(): Promise<unknown> {
+  const filePath = getTokenFilePath();
+  try {
+    const data = await readFile(filePath, "utf-8");
+    return JSON.parse(data) as unknown;
+  } catch {
+    return null;
+  }
+}
+
+async function writeTokenFile(token: unknown): Promise<void> {
+  const filePath = getTokenFilePath();
+  const tmpPath = join(tmpdir(), `yazio-token-${randomBytes(6).toString("hex")}.json`);
+  try {
+    await writeFile(tmpPath, JSON.stringify(token), "utf-8");
+    await rename(tmpPath, filePath);
+  } catch (err) {
+    console.error("Warning: could not save token to file:", (err as Error).message);
+  } finally {
+    try {
+      await rm(tmpPath, { force: true });
+    } catch {
+      // ignore
+    }
+  }
+}
 
 let instance: Yazio | null = null;
 
-export function getClient(): Yazio {
+export function getClient(options?: { noCacheToken?: boolean }): Yazio {
   if (instance) return instance;
 
   const username = process.env.YAZIO_USERNAME;
@@ -17,9 +54,17 @@ export function getClient(): Yazio {
     process.exit(1);
   }
 
-  instance = new Yazio({
-    credentials: { username, password },
-  });
+  if (options?.noCacheToken === true) {
+    instance = new Yazio({
+      credentials: { username, password },
+    });
+  } else {
+    instance = new Yazio({
+      credentials: { username, password },
+      token: readTokenFile(),
+      onRefresh: ({ token }) => writeTokenFile(token),
+    });
+  }
 
   return instance;
 }
