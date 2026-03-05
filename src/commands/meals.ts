@@ -5,6 +5,7 @@ import { output } from "../utils/formatters.js";
 import { progress } from "../utils/progress.js";
 import type { CommonOptions } from "../types.js";
 import { getPortionWeight } from "../utils/portionCount.js";
+import { resolveProductAmountDisplay } from "../utils/productDisplay.js";
 
 const MEAL_ORDER = ["breakfast", "lunch", "dinner", "snack"] as const;
 
@@ -33,9 +34,14 @@ export function registerMealsCommand(program: Command) {
       const client = getClient(command.parent?.opts() ?? {});
       const dates = getDateRange(opts.from, opts.to);
       const rows: Record<string, unknown>[] = [];
-      const jsonDays: { date: string; meals: Record<string, { items: Record<string, unknown>[]; nutrients: { calories: number; protein: number; carbs: number; fat: number } }> }[] = [];
+      const jsonDays: {
+        date: string;
+        total: { calories: number; protein: number; carbs: number; fat: number };
+        meals: Record<string, { items: Record<string, unknown>[]; nutrients: { calories: number; protein: number; carbs: number; fat: number } }>;
+      }[] = [];
 
       const productNames = new Map<string, string>();
+      const productCache = new Map<string, any>();
 
       for (let i = 0; i < dates.length; i++) {
         progress(i + 1, dates.length);
@@ -60,11 +66,22 @@ export function registerMealsCommand(program: Command) {
             if (!name) {
               try {
                 const product = await client.products.get(item.product_id);
+                productCache.set(item.product_id, product ?? null);
                 name = product?.name ?? item.product_id;
               } catch {
+                productCache.set(item.product_id, null);
                 name = item.product_id;
               }
               productNames.set(item.product_id, name!);
+            }
+            let amountDisplay: string | undefined;
+            if (opts.format === "json") {
+              const res = await resolveProductAmountDisplay(client, productCache, {
+                product_id: item.product_id,
+                amount: item.amount,
+                serving: item.serving ?? null,
+              });
+              amountDisplay = res.amountDisplay;
             }
             const row = {
               date: dateKey,
@@ -78,11 +95,11 @@ export function registerMealsCommand(program: Command) {
               fat: mealNutrients[item.daytime]?.fat ?? "-",
             };
             rows.push(row);
-            itemsByMeal[item.daytime]?.push({
-              product: name,
-              amount: item.amount,
-              serving: item.serving ?? "-",
-            });
+            itemsByMeal[item.daytime]?.push(
+              opts.format === "json" && amountDisplay != null
+                ? { product: name, amount_display: amountDisplay }
+                : { product: name, amount: item.amount, serving: item.serving ?? "-" },
+            );
           }
 
           const simpleProducts = items?.simple_products ?? [];
@@ -99,17 +116,18 @@ export function registerMealsCommand(program: Command) {
               fat: mealNutrients[item.daytime]?.fat ?? "-",
             };
             rows.push(row);
-            itemsByMeal[item.daytime]?.push({
-              product: item.name,
-              amount: "-",
-              serving: "express",
-            });
+            itemsByMeal[item.daytime]?.push(
+              opts.format === "json"
+                ? { product: item.name, amount_display: "—" }
+                : { product: item.name, amount: "-", serving: "express" },
+            );
           }
 
           const recipePortions = items?.recipe_portions ?? [];
           for (const item of recipePortions) {
             const recipe = await client.user.getRecipe(item.recipe_id);
             const amount = getPortionWeight(item.portion_count, recipe);
+            const amountDisplayRecipe = `${amount} г`;
             const row = {
               date: dateKey,
               meal: item.daytime,
@@ -122,16 +140,33 @@ export function registerMealsCommand(program: Command) {
               fat: mealNutrients[item.daytime]?.fat ?? "-",
             };
             rows.push(row);
-            itemsByMeal[item.daytime]?.push({
-              product: recipe.name,
-              amount,
-              serving: "recipe",
-            });
+            itemsByMeal[item.daytime]?.push(
+              opts.format === "json"
+                ? { product: recipe.name, amount_display: amountDisplayRecipe }
+                : { product: recipe.name, amount, serving: "recipe" },
+            );
           }
 
           if (opts.format === "json") {
+            const total = MEAL_ORDER.reduce(
+              (acc, meal) => {
+                const n = mealNutrients[meal];
+                acc.calories += n.calories;
+                acc.protein += n.protein;
+                acc.carbs += n.carbs;
+                acc.fat += n.fat;
+                return acc;
+              },
+              { calories: 0, protein: 0, carbs: 0, fat: 0 },
+            );
             jsonDays.push({
               date: dateKey,
+              total: {
+                calories: Math.round(total.calories),
+                protein: Math.round(total.protein * 10) / 10,
+                carbs: Math.round(total.carbs * 10) / 10,
+                fat: Math.round(total.fat * 10) / 10,
+              },
               meals: Object.fromEntries(
                 MEAL_ORDER.map((meal) => [
                   meal,
