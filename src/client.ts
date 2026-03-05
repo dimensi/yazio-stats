@@ -40,6 +40,10 @@ async function writeTokenFile(token: unknown): Promise<void> {
 
 let instance: Yazio | null = null;
 
+/**
+ * Returns a singleton Yazio client. noCacheToken only affects token file
+ * read/write; the same instance is reused for the process.
+ */
 export function getClient(options?: { noCacheToken?: boolean }): Yazio {
   if (instance) return instance;
 
