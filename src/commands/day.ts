@@ -21,8 +21,8 @@ export function registerDayCommand(program: Command) {
     .description("Daily nutrition summary for a specific day (calories, macros, steps, weight, meals)")
     .option("--date <date>", "Date (YYYY-MM-DD), default: today", "")
     .option("--format <format>", "Output format: text, json", "text")
-    .action(async (opts: CommonOptions & { date?: string }) => {
-      const client = getClient();
+    .action(async (opts: CommonOptions & { date?: string }, command: Command) => {
+      const client = getClient(command.parent?.opts() ?? {});
       const dateStr = opts.date || formatDate(new Date());
       const date = new Date(dateStr);
       if (isNaN(date.getTime())) {

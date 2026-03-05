@@ -9,8 +9,8 @@ export function registerGoalsCommand(program: Command) {
     .description("Current nutrition and activity goals")
     .option("--from <date>", "Date to check goals for (YYYY-MM-DD)")
     .option("--format <format>", "Output format: table, json, csv", "table")
-    .action(async (opts: CommonOptions) => {
-      const client = getClient();
+    .action(async (opts: CommonOptions, command: Command) => {
+      const client = getClient(command.parent?.opts() ?? {});
       const date = opts.from ? new Date(opts.from) : new Date();
 
       try {

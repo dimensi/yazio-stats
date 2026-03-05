@@ -14,7 +14,8 @@ const program = new Command();
 program
   .name("yazio-stats")
   .description("Extract nutrition statistics from YAZIO")
-  .version(pkg.version);
+  .version(pkg.version)
+  .option("--no-cache-token", "do not use or save token to yazio-token.json");
 
 registerSummaryCommand(program);
 registerMealsCommand(program);

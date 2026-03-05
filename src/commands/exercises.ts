@@ -12,8 +12,8 @@ export function registerExercisesCommand(program: Command) {
     .option("--from <date>", "Start date (YYYY-MM-DD)")
     .option("--to <date>", "End date (YYYY-MM-DD)")
     .option("--format <format>", "Output format: table, json, csv", "table")
-    .action(async (opts: CommonOptions) => {
-      const client = getClient();
+    .action(async (opts: CommonOptions, command: Command) => {
+      const client = getClient(command.parent?.opts() ?? {});
       const dates = getDateRange(opts.from, opts.to);
       const rows: Record<string, unknown>[] = [];
 
