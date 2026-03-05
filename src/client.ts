@@ -13,10 +13,16 @@ function getTokenFilePath(): string {
 
 async function readTokenFile(): Promise<unknown> {
   const filePath = getTokenFilePath();
+  let data: string;
   try {
-    const data = await readFile(filePath, "utf-8");
+    data = await readFile(filePath, "utf-8");
+  } catch {
+    return null; // file missing
+  }
+  try {
     return JSON.parse(data) as unknown;
   } catch {
+    console.error("Warning: invalid token file, re-authenticating.");
     return null;
   }
 }
