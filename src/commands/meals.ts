@@ -4,6 +4,7 @@ import { getDateRange, formatDate } from "../utils/dates.js";
 import { output } from "../utils/formatters.js";
 import { progress } from "../utils/progress.js";
 import type { CommonOptions } from "../types.js";
+import { getPortionWeight } from "../utils/portionCount.js";
 
 export function registerMealsCommand(program: Command) {
   program
@@ -24,14 +25,14 @@ export function registerMealsCommand(program: Command) {
         progress(i + 1, dates.length);
         try {
           const items = await client.user.getConsumedItems({ date: dates[i] });
-          const products = (items as any)?.products ?? [];
+          const products = items?.products ?? [];
 
           for (const item of products) {
             let name = productNames.get(item.product_id);
             if (!name) {
               try {
                 const product = await client.products.get(item.product_id);
-                name = (product as any)?.name ?? item.product_id;
+                name = product?.name ?? item.product_id;
               } catch {
                 name = item.product_id;
               }
@@ -47,7 +48,7 @@ export function registerMealsCommand(program: Command) {
             });
           }
 
-          const simpleProducts = (items as any)?.simple_products ?? [];
+          const simpleProducts = items?.simple_products ?? [];
           for (const item of simpleProducts) {
             rows.push({
               date: formatDate(dates[i]),
@@ -58,13 +59,14 @@ export function registerMealsCommand(program: Command) {
             });
           }
 
-          const recipePortions = (items as any)?.recipe_portions ?? [];
+          const recipePortions = items?.recipe_portions ?? [];
           for (const item of recipePortions) {
+            const recipe = await client.user.getRecipe(item.recipe_id);
             rows.push({
               date: formatDate(dates[i]),
               meal: item.daytime,
-              product: item.name,
-              amount: "-",
+              product: recipe.name,
+              amount: getPortionWeight(item.portion_count, recipe),
               serving: "recipe",
             });
           }
