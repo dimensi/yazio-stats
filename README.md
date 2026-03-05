@@ -25,6 +25,8 @@ YAZIO_USERNAME=your-email@example.com
 YAZIO_PASSWORD=your-password
 ```
 
+По умолчанию токен сохраняется в `yazio-token.json` в текущей директории и переиспользуется при следующих запусках. Чтобы отключить кэш: `--no-cache-token`.
+
 ## Использование
 
 ```bash
@@ -49,6 +51,7 @@ npx tsx src/cli.ts <команда> [опции]
 | `--from <YYYY-MM-DD>` | Начало периода | 30 дней назад |
 | `--to <YYYY-MM-DD>` | Конец периода | сегодня |
 | `--format <format>` | Формат вывода: `table`, `json`, `csv` | `table` |
+| `--no-cache-token` | Не использовать и не сохранять токен в файл | кэш включён |
 
 ### Примеры
 
