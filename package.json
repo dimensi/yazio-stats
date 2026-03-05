@@ -10,6 +10,7 @@
     "weight": "tsx src/cli.ts weight",
     "exercises": "tsx src/cli.ts exercises",
     "goals": "tsx src/cli.ts goals",
+    "day": "tsx src/cli.ts day",
     "build": "bun build src/cli.ts --compile --outfile yazio-stats"
   },
   "dependencies": {

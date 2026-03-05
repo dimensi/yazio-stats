@@ -26,3 +26,11 @@ export function getDateRange(from?: string, to?: string): Date[] {
 export function formatDate(d: Date): string {
   return d.toISOString().split("T")[0];
 }
+
+/** For display: "04 March 2026" */
+export function formatDateLong(d: Date): string {
+  const day = d.getDate().toString().padStart(2, "0");
+  const month = d.toLocaleString("en", { month: "long" });
+  const year = d.getFullYear();
+  return `${day} ${month} ${year}`;
+}

@@ -6,6 +6,7 @@ import { registerWaterCommand } from "./commands/water.js";
 import { registerWeightCommand } from "./commands/weight.js";
 import { registerExercisesCommand } from "./commands/exercises.js";
 import { registerGoalsCommand } from "./commands/goals.js";
+import { registerDayCommand } from "./commands/day.js";
 import pkg from "../package.json";
 
 const program = new Command();
@@ -21,5 +22,6 @@ registerWaterCommand(program);
 registerWeightCommand(program);
 registerExercisesCommand(program);
 registerGoalsCommand(program);
+registerDayCommand(program);
 
 program.parse();

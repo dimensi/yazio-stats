@@ -57,6 +57,17 @@ export function registerMealsCommand(program: Command) {
               serving: "express",
             });
           }
+
+          const recipePortions = (items as any)?.recipe_portions ?? [];
+          for (const item of recipePortions) {
+            rows.push({
+              date: formatDate(dates[i]),
+              meal: item.daytime,
+              product: item.name,
+              amount: "-",
+              serving: "recipe",
+            });
+          }
         } catch {
           // skip days with errors
         }
