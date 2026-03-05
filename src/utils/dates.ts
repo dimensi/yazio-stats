@@ -34,3 +34,12 @@ export function formatDateLong(d: Date): string {
   const year = d.getFullYear();
   return `${day} ${month} ${year}`;
 }
+
+/** For display in day (ru): "4 марта 2026" */
+export function formatDateLongRu(d: Date): string {
+  return d.toLocaleDateString("ru-RU", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+}
