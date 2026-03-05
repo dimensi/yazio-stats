@@ -1,8 +1,11 @@
 import type { Command } from "commander";
 import { getClient } from "../client.js";
-import { formatDate, formatDateLong } from "../utils/dates.js";
+import { formatDate, formatDateLong, formatDateLongRu } from "../utils/dates.js";
 import type { CommonOptions } from "../types.js";
 import { getPortionWeight } from "../utils/portionCount.js";
+import { resolveProductAmountDisplay } from "../utils/productDisplay.js";
+
+const MEAL_ORDER = ["breakfast", "lunch", "dinner", "snack"] as const;
 
 const MEAL_LABELS: Record<string, string> = {
   breakfast: "Завтрак",
@@ -71,6 +74,7 @@ export function registerDayCommand(program: Command) {
             weightResp?.value ?? summary?.user?.current_weight ?? null;
 
           const productNames = new Map<string, string>();
+          const productCache = new Map<string, any>();
           const products = (items?.products ?? []) as any[];
           for (const item of products) {
             if (!productNames.has(item.product_id)) {
@@ -78,11 +82,13 @@ export function registerDayCommand(program: Command) {
                 const product = (await client.products.get(
                   item.product_id,
                 )) as any;
+                productCache.set(item.product_id, product ?? null);
                 productNames.set(
                   item.product_id,
                   product?.name ?? item.product_id,
                 );
               } catch {
+                productCache.set(item.product_id, null);
                 productNames.set(item.product_id, item.product_id);
               }
             }
@@ -96,12 +102,20 @@ export function registerDayCommand(program: Command) {
           };
           for (const item of products) {
             const name = productNames.get(item.product_id) ?? item.product_id;
-            const amount = item.amount != null ? `${item.amount}г` : "-г";
-            byMeal[item.daytime].push(`${name} (${amount})`);
+            const { amountDisplay } = await resolveProductAmountDisplay(
+              client,
+              productCache,
+              {
+                product_id: item.product_id,
+                amount: item.amount,
+                serving: item.serving ?? null,
+              },
+            );
+            byMeal[item.daytime].push(`${name} (${amountDisplay})`);
           }
           for (const item of items?.simple_products ?? []) {
             const name = item.name ?? "—";
-            byMeal[item.daytime].push(`${name} (-г)`);
+            byMeal[item.daytime].push(`${name} (—)`);
           }
           for (const item of items?.recipe_portions ?? []) {
             const recipe = await client.user.getRecipe(item.recipe_id);
@@ -109,15 +123,32 @@ export function registerDayCommand(program: Command) {
             const daytime = item.daytime;
             const amount = getPortionWeight(item.portion_count, recipe);
             if (daytime && byMeal[daytime])
-              byMeal[daytime].push(`${name} (${amount}г)`);
+              byMeal[daytime].push(`${name} (${amount} г)`);
           }
+
+          const mealNutrients = MEAL_ORDER.reduce(
+            (acc, meal) => {
+              const n = summary?.meals?.[meal]?.nutrients ?? {};
+              acc[meal] = {
+                calories: Math.round(n["energy.energy"] ?? 0),
+                protein: Math.round((n["nutrient.protein"] ?? 0) * 10) / 10,
+                carbs: Math.round((n["nutrient.carb"] ?? 0) * 10) / 10,
+                fat: Math.round((n["nutrient.fat"] ?? 0) * 10) / 10,
+              };
+              return acc;
+            },
+            {} as Record<
+              string,
+              { calories: number; protein: number; carbs: number; fat: number }
+            >,
+          );
 
           if (opts.format === "json") {
             console.log(
               JSON.stringify(
                 {
                   date: dateKey,
-                  dateLong: formatDateLong(date),
+                  dateLong: formatDateLongRu(date),
                   calories: {
                     value: calories,
                     goal: goalCal,
@@ -146,18 +177,22 @@ export function registerDayCommand(program: Command) {
             return;
           }
 
-          // Text format (default)
-          console.log(`\n📊 Сводка питания — ${formatDateLong(date)}\n`);
+          // Text format (default) — Telegram markup: *bold*, _italic_
           console.log(
-            `🔥 Калории: ${calories} ккал (${pct(calories, goalCal)})`,
+            `\n📊 *Сводка питания — ${formatDateLongRu(date)}*\n`,
           );
           console.log(
-            `🍗 Белки: ${protein.toFixed(1)} г (${pct(protein, goalProtein)})`,
+            `🔥 *Калории:* ${calories} ккал (${pct(calories, goalCal)})`,
           );
           console.log(
-            `🍞 Углеводы: ${carbs.toFixed(1)} г (${pct(carbs, goalCarbs)})`,
+            `🍗 *Белки:* ${protein.toFixed(1)} г (${pct(protein, goalProtein)})`,
           );
-          console.log(`🥑 Жиры: ${fat.toFixed(1)} г (${pct(fat, goalFat)})`);
+          console.log(
+            `🍞 *Углеводы:* ${carbs.toFixed(1)} г (${pct(carbs, goalCarbs)})`,
+          );
+          console.log(
+            `🥑 *Жиры:* ${fat.toFixed(1)} г (${pct(fat, goalFat)})\n`,
+          );
           console.log(`👟 Шаги: ${steps} шагов`);
           if (weightKg != null) {
             const w = Number(weightKg).toFixed(1);
@@ -167,12 +202,18 @@ export function registerDayCommand(program: Command) {
                 : "";
             console.log(`⚖️ Вес: ${w} кг${goalWeightLine}`);
           }
-          console.log("\n🍽 Приёмы пищи:");
-          for (const mealType of ["breakfast", "lunch", "dinner", "snack"]) {
+          console.log("\n🍽 *Приёмы пищи:*");
+          for (const mealType of MEAL_ORDER) {
             const lines = byMeal[mealType];
-            if (lines.length === 0) continue;
             const label = MEAL_LABELS[mealType] ?? mealType;
-            console.log(`• ${label}: ${lines.join(", ")}`);
+            const nutrients = mealNutrients[mealType];
+            if (lines.length === 0) continue;
+            console.log(
+              `• *${label}:* ${lines.join(", ")}`,
+            );
+            console.log(
+              `  _${nutrients.calories} ккал · Б ${Math.round(nutrients.protein)} · У ${Math.round(nutrients.carbs)} · Ж ${Math.round(nutrients.fat)}_`,
+            );
           }
           console.log("");
         } catch (err: any) {
