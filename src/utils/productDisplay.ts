@@ -51,6 +51,10 @@ export function getAmountDisplay(
   if (product.base_unit === "g") {
     return { weightG: amount, amountDisplay: `${amount} г` };
   }
+  const baseUnit = (product.base_unit ?? "").toLowerCase();
+  if (baseUnit === "ml" || baseUnit === "milliliter") {
+    return { weightG: null, amountDisplay: `${amount} мл` };
+  }
 
   const label = servingNorm ? SERVING_LABEL_RU[servingNorm] ?? serving : "—";
   return { weightG: null, amountDisplay: `${amount} ${label}` };
